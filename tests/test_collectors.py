@@ -42,6 +42,11 @@ def test_complexity_unparsable_output_fails(fixture_config, monkeypatch):
         complexity.collect(fixture_config)
 
 
+def test_complexity_zero_functions_is_not_an_error(tmp_path):
+    (tmp_path / "Consts.swift").write_text('let answer = 42\nlet name = "x"\n')
+    assert complexity.collect(Config(root=tmp_path)) == {"ccn_over_15": 0, "max_ccn": 0, "long_functions": 0}
+
+
 def test_duplication_on_fixture(fixture_config):
     out = duplication.collect(fixture_config)
     assert 0 < out["duplication_pct"] < 50

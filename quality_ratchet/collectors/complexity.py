@@ -32,7 +32,7 @@ def collect(config: Config) -> dict[str, float]:
         if nloc > config.function_nloc_threshold:
             long_functions += 1
         max_ccn = max(max_ccn, ccn)
-    if rows_parsed == 0:
+    if rows_parsed == 0 and proc.stdout.strip():
         raise CollectorError("lizard: no parsable rows in --csv output")
     # Metric name is a baseline contract; the threshold behind it is config.ccn_threshold (default 15).
     return {"ccn_over_15": over, "max_ccn": max_ccn, "long_functions": long_functions}
