@@ -20,3 +20,6 @@ include = ["quality_ratchet*"]
 
 [tool.ruff]
 line-length = 110
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

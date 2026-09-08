@@ -17,6 +17,8 @@ def test_is_test_path_globs():
     assert is_test_path("android/app/src/test/FooTest.kt", dirs)
     assert is_test_path("ios/Turnify/TurnifyTests/FooTests.swift", dirs)
     assert not is_test_path("ios/Turnify/Turnify/Foo.swift", dirs)
+    assert is_test_path("tests/test_x.py", ["**/tests/**"])
+    assert is_test_path("test/x.go", ["**/test/**"])
 
 
 def test_iter_source_files_respects_include_exclude_and_exts(tmp_path: Path):

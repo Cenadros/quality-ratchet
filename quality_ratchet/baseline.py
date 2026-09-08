@@ -60,7 +60,10 @@ class Delta:
 def load_baseline(path: Path) -> Baseline | None:
     if not path.exists():
         return None
-    return Baseline.from_dict(json.loads(path.read_text()))
+    try:
+        return Baseline.from_dict(json.loads(path.read_text()))
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        raise ConfigError(f"cannot read {path}: {e}") from e
 
 
 def save_baseline(path: Path, baseline: Baseline) -> None:
@@ -117,11 +120,12 @@ def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[s
     if force:
         new.history.append({
             "date": date.today().isoformat(), "reason": reason,  # noqa: DTZ011 (local date is intentional)
-            "from": {k: m.value for k, m in baseline.metrics.items()}, "to": dict(current),
+            "from": {k: m.value for k, m in baseline.metrics.items()},
+            "to": {k: v for k, v in current.items() if k in METRIC_SPECS},
         })
-        new.initial = dict(current)
+        new.initial = {k: v for k, v in current.items() if k in METRIC_SPECS}
     if changed or force:
         new.commit = commit
         new.tool_versions = dict(tool_versions)
-        new.score = compute_score(current, new.initial, weights)
+        new.score = compute_score({n: m.value for n, m in new.metrics.items()}, new.initial, weights)
     return new, changed

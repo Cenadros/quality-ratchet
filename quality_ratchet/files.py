@@ -30,7 +30,15 @@ def is_excluded(rel: str, exclude: list[str]) -> bool:
 
 def is_test_path(rel: str, tests_dirs: list[str]) -> bool:
     # fnmatch's "*" already crosses "/" so "**" collapses to "*".
-    return any(fnmatch.fnmatch(rel, pat.replace("**", "*")) for pat in tests_dirs)
+    for pat in tests_dirs:
+        if fnmatch.fnmatch(rel, pat.replace("**", "*")):
+            return True
+        # "**/tests/**" requires a segment before "tests/" once collapsed to "*/tests/*",
+        # so a repo-root "tests/..." would never match it. Also try the pattern with its
+        # leading "**/" stripped so a root-level test dir matches too.
+        if pat.startswith("**/") and fnmatch.fnmatch(rel, pat[3:].replace("**", "*")):
+            return True
+    return False
 
 
 def iter_source_files(config: Config) -> list[Path]:

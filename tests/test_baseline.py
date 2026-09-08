@@ -44,6 +44,13 @@ def test_roundtrip_json(tmp_path: Path):
     assert load_baseline(tmp_path / "missing.json") is None
 
 
+def test_load_baseline_corrupt_raises_config_error(tmp_path: Path):
+    p = tmp_path / "quality-baseline.json"
+    p.write_text(json.dumps({"version": 1}))
+    with pytest.raises(ConfigError, match="cannot read"):
+        load_baseline(p)
+
+
 def test_compare_statuses():
     b = make()
     now = {**CURRENT, "max_ccn": 31, "lint_warnings": 90, "duplication_pct": 4.05, "tests_per_kloc": 9.5}
@@ -58,7 +65,7 @@ def test_compare_statuses():
 def test_compare_new_metric_and_missing_collector():
     b = make()
     deltas = compare(b, {**CURRENT, "extra": 1})
-    assert [d for d in deltas if d.name == "extra"][0].status == "new"
+    assert next(d for d in deltas if d.name == "extra").status == "new"
     with pytest.raises(ConfigError, match="max_ccn"):
         compare(b, {k: v for k, v in CURRENT.items() if k != "max_ccn"})
 
@@ -72,6 +79,7 @@ def test_ratchet_only_improves_without_force():
     assert new.metrics["max_ccn"].value == 30           # regression ignored
     assert new.initial == CURRENT                       # never re-anchored without force
     assert new.commit == "def5678" and new.score > 50
+    assert new.score == 51
     assert b.metrics["lint_warnings"].value == 100      # input untouched
 
 
