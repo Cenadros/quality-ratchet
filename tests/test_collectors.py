@@ -3,6 +3,7 @@ import subprocess
 
 import pytest
 
+from quality_ratchet import collectors
 from quality_ratchet.collectors import complexity, duplication, lint, tests_ratio
 from quality_ratchet.collectors.base import require_tool
 from quality_ratchet.config import Config
@@ -115,3 +116,9 @@ def test_production_loc_excludes_tests(fixture_config):
 def test_tests_per_kloc(fixture_config):
     out = tests_ratio.collect(fixture_config)
     assert 20 < out["tests_per_kloc"] < 40  # 3 tests / ~0.119 kloc ≈ 25
+
+
+def test_collect_all_missing_metric_fails(fixture_config, monkeypatch):
+    monkeypatch.setattr(collectors, "COLLECTORS", [complexity, duplication, lint])
+    with pytest.raises(CollectorError, match="tests_per_kloc"):
+        collectors.collect_all(fixture_config)

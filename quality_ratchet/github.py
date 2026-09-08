@@ -8,7 +8,7 @@ from .baseline import Delta
 def emit(deltas: list[Delta], baseline_score: int, score: int) -> None:
     for d in deltas:
         if d.status == "fail":
-            print(f"::error title=quality-ratchet::{d.name} {d.baseline} → {d.now} ({d.delta:+g})")
+            print(f"::error title=quality-ratchet::{d.name} {d.baseline:g} → {d.now:g} ({d.delta:+g})")
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary_path:
         return

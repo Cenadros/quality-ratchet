@@ -21,7 +21,7 @@ def test_component_higher_anchors_at_half():
 
 
 def test_component_initial_zero():
-    assert component(0, 0, "lower") == 1.0
+    assert component(0, 0, "lower") == 0.5
     assert component(3, 0, "lower") == 0.0
     assert component(5, 0, "higher") == 1.0
     assert component(0, 0, "higher") == 0.5

@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -37,11 +38,7 @@ def test_check_creates_baseline_first_time(repo, capsys):
     out = capsys.readouterr().out
     assert "baseline inicial" in out
     data = json.loads((repo / "quality-baseline.json").read_text())
-    # Not 50: this fixture's quality-ratchet.yml configures no linter, so lint_warnings
-    # starts at 0. score.component() anchors a lower-is-better metric already at 0 to
-    # full credit (1.0), not the neutral 0.5 (see test_score.py::test_component_initial_zero)
-    # -> round(100 * (0.5*.30 + 0.5*.25 + 1.0*.25 + 0.5*.20)) == 62.
-    assert data["score"] == 62
+    assert data["score"] == 50
     assert data["metrics"]["ccn_over_15"]["value"] == 1
 
 
@@ -50,7 +47,7 @@ def test_check_fails_on_regression_and_report_never_fails(repo, capsys):
     add_complex_function(repo)
     assert main(["--root", str(repo), "check"]) == 1
     out = capsys.readouterr().out
-    assert "ccn_over_15" in out and "FAIL" in out
+    assert re.search(r"^ccn_over_15 .*FAIL$", out, re.MULTILINE)
     assert main(["--root", str(repo), "report"]) == 0
 
 
@@ -101,6 +98,23 @@ def test_github_annotations(repo, capsys, tmp_path, monkeypatch):
     assert main(["--root", str(repo), "check", "--github"]) == 1
     assert "::error title=quality-ratchet::ccn_over_15" in capsys.readouterr().out
     assert "| ccn_over_15 |" in summary.read_text()
+
+
+def test_check_with_baseline_missing_metric(repo, capsys):
+    main(["--root", str(repo), "check"])
+    baseline_path = repo / "quality-baseline.json"
+    data = json.loads(baseline_path.read_text())
+    del data["metrics"]["max_ccn"]
+    del data["initial"]["max_ccn"]
+    baseline_path.write_text(json.dumps(data))
+    assert main(["--root", str(repo), "check"]) == 0
+    out = capsys.readouterr().out
+    assert re.search(r"^max_ccn .*new$", out, re.MULTILINE)
+
+
+def test_report_without_baseline_does_not_write(repo):
+    assert main(["--root", str(repo), "report"]) == 0
+    assert not (repo / "quality-baseline.json").exists()
 
 
 def test_init_writes_config_and_baseline(tmp_path):

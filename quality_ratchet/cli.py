@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 import yaml
@@ -10,8 +12,9 @@ import yaml
 from . import github
 from .baseline import Baseline, Delta, compare, load_baseline, new_baseline, ratchet, save_baseline
 from .collectors import collect_all
-from .config import CONFIG_FILENAME, Config, load_config
+from .config import CONFIG_FILENAME, DEFAULT_EXCLUDE, Config, load_config
 from .errors import CollectorError, ConfigError
+from .files import is_excluded
 from .score import compute_score
 
 STATUS_LABEL = {"ok": "ok", "improved": "ok  ↑", "fail": "FAIL", "new": "new"}
@@ -27,14 +30,14 @@ def git_commit(root: Path) -> str:
         return "unknown"
 
 
-def print_table(deltas: list[Delta], baseline_score: int, score: int) -> None:
+def print_table(deltas: list[Delta], baseline_score: int, score: int, failed: bool) -> None:
     width = max(len("metric"), *(len(d.name) for d in deltas))
     print(f"{'metric':<{width}}  {'baseline':>9} {'now':>8} {'delta':>7}   status")
     for d in deltas:
         base = "—" if d.baseline is None else f"{d.baseline:g}"
         print(f"{d.name:<{width}}  {base:>9} {d.now:>8g} {d.delta:>+7g}   {STATUS_LABEL[d.status]}")
     diff = score - baseline_score
-    label = "FAIL" if diff < 0 else ("ok  ↑" if diff > 0 else "ok")
+    label = "FAIL" if failed else ("ok  ↑" if diff > 0 else "ok")
     print(f"{'score':<{width}}  {baseline_score:>9} {score:>8} {diff:>+7d}   {label}")
 
 
@@ -63,15 +66,23 @@ def cmd_check(args: argparse.Namespace, gate: bool = True) -> int:
     config, current, versions = _measure(Path(args.root))
     baseline = load_baseline(config.baseline_path)
     if baseline is None:
-        _create_baseline(config, current, versions)
+        if gate:
+            _create_baseline(config, current, versions)
+            return 0
+        # report never creates or writes a baseline: pretend everything is "new" against
+        # an empty baseline, anchored at the neutral score (50).
+        deltas = [Delta(name, None, now, 0.0, "new") for name, now in current.items()]
+        score = compute_score(current, current, config.weights)
+        print_table(deltas, score, score, failed=False)
+        print("sin baseline: quality-ratchet check la crea")
         return 0
     deltas = compare(baseline, current)
     score = compute_score(current, baseline.initial, config.weights)
-    print_table(deltas, baseline.score, score)
+    failed = any(d.status == "fail" for d in deltas)
+    print_table(deltas, baseline.score, score, failed)
     warn_versions(baseline, versions)
     if getattr(args, "github", False):
         github.emit(deltas, baseline.score, score)
-    failed = any(d.status == "fail" for d in deltas)
     return 1 if (gate and failed) else 0
 
 
@@ -98,13 +109,21 @@ def cmd_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def _find_swiftlint_config(root: Path) -> Path | None:
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel_dir = Path(dirpath).relative_to(root).as_posix()
+        prefix = "" if rel_dir == "." else rel_dir + "/"
+        dirnames[:] = sorted(d for d in dirnames if not is_excluded(prefix + d, DEFAULT_EXCLUDE))
+        if ".swiftlint.yml" in sorted(filenames):
+            return Path(dirpath) / ".swiftlint.yml"
+    return None
+
+
 def detect_linters(root: Path) -> dict[str, dict]:
     found: dict[str, dict] = {}
-    for cfg in sorted(root.rglob(".swiftlint.yml")):
-        if any(part in ("node_modules", "Pods", "build", ".build") for part in cfg.parts):
-            continue
+    cfg = _find_swiftlint_config(root)
+    if cfg is not None:
         found["swiftlint"] = {"cwd": cfg.parent.relative_to(root).as_posix()}
-        break
     if (root / "ruff.toml").exists() or (root / ".ruff.toml").exists():  # noqa: SIM114 (kept separate for clarity)
         found["ruff"] = {}
     elif (root / "pyproject.toml").exists() and "[tool.ruff]" in (root / "pyproject.toml").read_text():
@@ -162,6 +181,9 @@ def main(argv: list[str] | None = None) -> int:
         return int(args.func(args))
     except (CollectorError, ConfigError) as e:
         print(f"error: {e}", file=sys.stderr)
+        return 2
+    except Exception:  # noqa: BLE001 (deliberate: an internal crash must never read as exit 1/a quality regression)
+        print(f"internal error: {traceback.format_exc()}", file=sys.stderr)
         return 2
 
 

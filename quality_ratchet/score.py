@@ -7,7 +7,7 @@ def component(value: float, initial: float, better: str) -> float:
     """0..1 with the initial baseline anchored at 0.5."""
     if initial == 0:
         if better == "lower":
-            return 1.0 if value == 0 else 0.0
+            return 0.5 if value == 0 else 0.0
         return 1.0 if value > 0 else 0.5
     raw = 1 - value / (2 * initial) if better == "lower" else value / (2 * initial)
     return max(0.0, min(1.0, raw))
@@ -17,7 +17,7 @@ def compute_score(current: dict[str, float], initial: dict[str, float], weights:
     total = 0.0
     weight_sum = 0.0
     for group, names in GROUPS.items():
-        comps = [component(current[n], initial[n], METRIC_SPECS[n][0]) for n in names]
+        comps = [component(current[n], initial.get(n, current[n]), METRIC_SPECS[n][0]) for n in names]
         w = float(weights.get(group, 0.0))
         total += w * (sum(comps) / len(comps))
         weight_sum += w
