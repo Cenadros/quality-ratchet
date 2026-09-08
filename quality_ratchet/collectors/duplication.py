@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ..config import Config
 from ..errors import CollectorError
+from ..files import iter_source_files
 from .base import require_tool, run, tool_version
 
 INSTALL = "npm install -g jscpd"
@@ -20,6 +21,8 @@ def _ignore_globs(config: Config) -> list[str]:
 
 
 def collect(config: Config) -> dict[str, float]:
+    if not iter_source_files(config):
+        return {"duplication_pct": 0.0}
     require_tool("jscpd", INSTALL)
     with tempfile.TemporaryDirectory() as tmp:
         cmd = [
@@ -32,8 +35,12 @@ def collect(config: Config) -> dict[str, float]:
         report_path = Path(tmp) / "jscpd-report.json"
         if not report_path.exists():
             raise CollectorError(f"jscpd produced no report ({proc.returncode}): {proc.stderr.strip()[:500]}")
-        report = json.loads(report_path.read_text())
-    pct = float(report["statistics"]["total"]["percentage"])
+        report_text = report_path.read_text()
+    try:
+        report = json.loads(report_text)
+        pct = float(report["statistics"]["total"]["percentage"])
+    except (ValueError, KeyError, TypeError) as e:
+        raise CollectorError(f"jscpd: cannot parse report: {e}") from e
     return {"duplication_pct": round(pct, 2)}
 
 

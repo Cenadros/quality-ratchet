@@ -15,7 +15,10 @@ def require_tool(name: str, install_hint: str) -> str:
 
 
 def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess:
-    proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    except OSError as e:
+        raise CollectorError(f"{cmd[0]}: {e}") from e
     if check and proc.returncode != 0:
         raise CollectorError(f"{cmd[0]} failed ({proc.returncode}): {proc.stderr.strip()[:500]}")
     return proc

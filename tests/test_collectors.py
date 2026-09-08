@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 
 import pytest
@@ -33,28 +34,49 @@ def test_complexity_versions(fixture_config):
     assert complexity.versions(fixture_config)["lizard"] != "unknown"
 
 
+def test_complexity_unparsable_output_fails(fixture_config, monkeypatch):
+    fake = subprocess.CompletedProcess(args=["lizard"], returncode=0, stdout="garbage\n", stderr="")
+    monkeypatch.setattr(complexity, "require_tool", lambda name, hint: name)
+    monkeypatch.setattr(complexity, "run", lambda cmd, cwd=None, check=True: fake)
+    with pytest.raises(CollectorError, match="no parsable rows"):
+        complexity.collect(fixture_config)
+
+
 def test_duplication_on_fixture(fixture_config):
     out = duplication.collect(fixture_config)
     assert 0 < out["duplication_pct"] < 50
 
 
-def test_duplication_ignores_test_dirs(fixture_config, fixture_repo):
-    # Copy the duplicated file into a test dir: percentage must not rise (tests are ignored).
-    before = duplication.collect(fixture_config)["duplication_pct"]
-    (fixture_repo / "src" / "test" / "dup_c.ts").write_text((fixture_repo / "src" / "main" / "dup_a.ts").read_text())
-    try:
-        after = duplication.collect(fixture_config)["duplication_pct"]
-    finally:
-        (fixture_repo / "src" / "test" / "dup_c.ts").unlink()
-    assert after <= before
+def test_duplication_empty_repo(tmp_path):
+    assert duplication.collect(Config(root=tmp_path)) == {"duplication_pct": 0.0}
+
+
+def test_duplication_ignores_test_dirs(fixture_repo, tmp_path):
+    # Work on a private copy so we don't mutate the session-scoped fixture repo.
+    repo = tmp_path / "repo"
+    shutil.copytree(fixture_repo, repo)
+    cfg = Config(root=repo, include=["Sources", "src"], tests_dirs=["**/*Tests/**", "**/src/test/**"])
+    before = duplication.collect(cfg)["duplication_pct"]
+    (repo / "src" / "test" / "dup_c.ts").write_text((repo / "src" / "main" / "dup_a.ts").read_text())
+    after = duplication.collect(cfg)["duplication_pct"]
+    assert after == before
 
 
 def test_lint_counts_swiftlint_json(fixture_repo, monkeypatch):
     fake = subprocess.CompletedProcess(args=["swiftlint"], returncode=0, stdout='[{"rule_id":"a"},{"rule_id":"b"}]', stderr="")
+    calls = []
     monkeypatch.setattr(lint, "require_tool", lambda name, hint: name)
-    monkeypatch.setattr(lint, "run", lambda cmd, cwd=None, check=True: fake)
+
+    def fake_run(cmd, cwd=None, check=True):
+        calls.append((cmd, cwd))
+        return fake
+
+    monkeypatch.setattr(lint, "run", fake_run)
     cfg = Config(root=fixture_repo, linters={"swiftlint": {"cwd": "Sources"}})
     assert lint.collect(cfg) == {"lint_warnings": 2}
+    cmd, cwd = calls[0]
+    assert cwd == fixture_repo / "Sources"
+    assert cmd[:2] == ["swiftlint", "lint"]
 
 
 def test_lint_no_linters_is_zero(fixture_repo):
