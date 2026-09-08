@@ -1,0 +1,38 @@
+name: quality-ratchet
+description: Monotonic code-quality gate (complexity, duplication, lint, tests ratio)
+inputs:
+  command:
+    description: "check | update | report"
+    default: check
+  working-directory:
+    description: Project root containing quality-ratchet.yml
+    default: "."
+  python-version:
+    default: "3.12"
+  jscpd-version:
+    default: "4.3.0"
+  scc-version:
+    default: "3.7.0"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.25"
+    - name: Install quality-ratchet and tools
+      shell: bash
+      run: |
+        pip install --quiet "${{ github.action_path }}"
+        npm install --global --silent "jscpd@${{ inputs.jscpd-version }}"
+        go install "github.com/boyter/scc/v3@v${{ inputs.scc-version }}"
+        echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+    - name: Run quality-ratchet ${{ inputs.command }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        extra=""
+        [ "${{ inputs.command }}" = "check" ] && extra="--github"
+        quality-ratchet "${{ inputs.command }}" $extra

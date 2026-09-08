@@ -1,0 +1,35 @@
+version: 1
+include:
+- .
+exclude:
+- build
+- node_modules
+- .build
+- Pods
+- fastlane
+- docs
+- '*.generated.*'
+- .git
+- .venv
+- .superpowers
+tests:
+  dirs:
+  - '**/test/**'
+  - '**/tests/**'
+  - '**/androidTest/**'
+  - '**/*Tests/**'
+  - '**/*UITests/**'
+  - '**/__tests__/**'
+thresholds:
+  ccn: 15
+  function_nloc: 60
+duplication:
+  min_tokens: 50
+linters:
+  ruff: {}
+score:
+  weights:
+    complexity: 0.3
+    duplication: 0.25
+    lint: 0.25
+    tests: 0.2

@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "commit": "4fd6c06",
+  "tool_versions": {
+    "lizard": "1.24.0",
+    "jscpd": "4.3.0",
+    "ruff": "ruff 0.16.6",
+    "scc": "scc version 3.7.0"
+  },
+  "initial": {
+    "ccn_over_15": 1,
+    "max_ccn": 18,
+    "long_functions": 0,
+    "duplication_pct": 0.0,
+    "lint_warnings": 0,
+    "tests_per_kloc": 73.44
+  },
+  "metrics": {
+    "ccn_over_15": {
+      "value": 1,
+      "better": "lower",
+      "tolerance": 0.0
+    },
+    "max_ccn": {
+      "value": 18,
+      "better": "lower",
+      "tolerance": 0.0
+    },
+    "long_functions": {
+      "value": 0,
+      "better": "lower",
+      "tolerance": 0.0
+    },
+    "duplication_pct": {
+      "value": 0.0,
+      "better": "lower",
+      "tolerance": 0.1
+    },
+    "lint_warnings": {
+      "value": 0,
+      "better": "lower",
+      "tolerance": 0.0
+    },
+    "tests_per_kloc": {
+      "value": 73.44,
+      "better": "higher",
+      "tolerance": 0.2
+    }
+  },
+  "score": 50,
+  "history": []
+}

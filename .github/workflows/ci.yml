@@ -1,0 +1,40 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.25" }
+      - run: |
+          pip install -e '.[dev]'
+          npm install --global --silent jscpd@4.3.0
+          go install github.com/boyter/scc/v3@v3.7.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: ruff check .
+      - run: pytest -v
+  dogfood:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          command: ${{ github.event_name == 'push' && 'update' || 'check' }}
+      - name: Commit ratcheted baseline
+        if: github.event_name == 'push'
+        run: |
+          if ! git diff --quiet -- quality-baseline.json; then
+            git config user.name "quality-ratchet[bot]"
+            git config user.email "quality-ratchet@users.noreply.github.com"
+            score=$(python3 -c "import json;print(json.load(open('quality-baseline.json'))['score'])")
+            git commit -am "chore(quality): baseline ↑ score ${score}"
+            git push
+          fi
