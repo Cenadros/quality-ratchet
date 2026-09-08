@@ -8,10 +8,13 @@ from .config import Config
 
 # Languages lizard can parse (function-level CCN/NLOC).
 LIZARD_EXTS = frozenset(
-    "c cc cpp cxx h hpp hh java kt kts swift js jsx ts tsx py rb go rs php scala m mm cs lua".split()
+    [
+        "c", "cc", "cpp", "cxx", "h", "hpp", "hh", "java", "kt", "kts", "swift", "js", "jsx", "ts", "tsx",
+        "py", "rb", "go", "rs", "php", "scala", "m", "mm", "cs", "lua",
+    ]
 )
 # Everything we count as "production or test code" for LOC purposes.
-SOURCE_EXTS = LIZARD_EXTS | frozenset("sh bash zsh".split())
+SOURCE_EXTS = LIZARD_EXTS | frozenset(["sh", "bash", "zsh"])
 
 
 def is_excluded(rel: str, exclude: list[str]) -> bool:

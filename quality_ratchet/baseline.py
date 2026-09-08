@@ -36,7 +36,7 @@ class Baseline:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Baseline":
+    def from_dict(cls, d: dict) -> Baseline:
         return cls(
             version=int(d["version"]),
             commit=str(d.get("commit", "unknown")),
@@ -116,7 +116,7 @@ def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[s
             changed.append(d.name)
     if force:
         new.history.append({
-            "date": date.today().isoformat(), "reason": reason,
+            "date": date.today().isoformat(), "reason": reason,  # noqa: DTZ011 (local date is intentional)
             "from": {k: m.value for k, m in baseline.metrics.items()}, "to": dict(current),
         })
         new.initial = dict(current)

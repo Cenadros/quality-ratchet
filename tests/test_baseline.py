@@ -4,7 +4,13 @@ from pathlib import Path
 import pytest
 
 from quality_ratchet.baseline import (
-    Baseline, Metric, compare, load_baseline, new_baseline, ratchet, save_baseline,
+    Baseline,
+    Metric,
+    compare,
+    load_baseline,
+    new_baseline,
+    ratchet,
+    save_baseline,
 )
 from quality_ratchet.config import DEFAULT_WEIGHTS
 from quality_ratchet.errors import ConfigError
