@@ -5,7 +5,7 @@ import io
 
 from ..config import Config
 from ..errors import CollectorError
-from ..files import LIZARD_EXTS, iter_source_files
+from ..files import LIZARD_EXTS, is_test_path, iter_source_files
 from .base import require_tool, run, tool_version
 
 INSTALL = "pip install lizard"
@@ -13,7 +13,12 @@ INSTALL = "pip install lizard"
 
 def collect(config: Config) -> dict[str, float]:
     require_tool("lizard", INSTALL)
-    files = [str(p) for p in iter_source_files(config) if p.suffix.lstrip(".") in LIZARD_EXTS]
+    files = [
+        str(p)
+        for p in iter_source_files(config)
+        if p.suffix.lstrip(".") in LIZARD_EXTS
+        and not is_test_path(p.relative_to(config.root).as_posix(), config.tests_dirs)
+    ]
     if not files:
         return {"ccn_over_15": 0, "max_ccn": 0, "long_functions": 0}
     proc = run(["lizard", "--csv", *files])

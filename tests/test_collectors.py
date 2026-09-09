@@ -43,6 +43,20 @@ def test_complexity_unparsable_output_fails(fixture_config, monkeypatch):
         complexity.collect(fixture_config)
 
 
+def test_complexity_ignores_test_dirs(tmp_path):
+    branches = "\n".join(f'    if n == {i} {{ out = "v{i}" }}' for i in range(1, 20))
+    body = 'func classify(_ n: Int) -> String {\n    var out = ""\n' + branches + "\n    return out\n}\n"
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "Big.swift").write_text(body)
+    assert complexity.collect(Config(root=tmp_path)) == {"ccn_over_15": 0, "max_ccn": 0, "long_functions": 0}
+
+    (tmp_path / "tests" / "Big.swift").unlink()
+    (tmp_path / "Sources").mkdir()
+    (tmp_path / "Sources" / "Big.swift").write_text(body)
+    out = complexity.collect(Config(root=tmp_path))
+    assert out["max_ccn"] == 20
+
+
 def test_complexity_zero_functions_is_not_an_error(tmp_path):
     (tmp_path / "Consts.swift").write_text('let answer = 42\nlet name = "x"\n')
     assert complexity.collect(Config(root=tmp_path)) == {"ccn_over_15": 0, "max_ccn": 0, "long_functions": 0}
