@@ -6,12 +6,14 @@ from pathlib import Path
 
 from ..config import Config
 from ..errors import CollectorError
-from ..files import iter_source_files, relativize
+from ..files import SOURCE_EXTS, iter_source_files, relativize
 from .base import require_tool, run, tool_version
 
 INSTALL = "npm install -g jscpd"
 
-_EMPTY_REPORT = {"duplicates": [], "statistics": {"total": {"percentage": 0.0, "duplicatedLines": 0}}}
+
+def _empty_report() -> dict:
+    return {"duplicates": [], "statistics": {"total": {"percentage": 0.0, "duplicatedLines": 0}}}
 
 
 def _ignore_globs(config: Config) -> list[str]:
@@ -25,12 +27,13 @@ def _ignore_globs(config: Config) -> list[str]:
 def _jscpd_report(config: Config) -> dict:
     """Parsed jscpd JSON report, shared by collect() and explain()."""
     if not iter_source_files(config):
-        return _EMPTY_REPORT
+        return _empty_report()
     require_tool("jscpd", INSTALL)
     with tempfile.TemporaryDirectory() as tmp:
         cmd = [
             "jscpd", "--silent", "--reporters", "json", "--output", tmp,
             "--min-tokens", str(config.duplication_min_tokens),
+            "--pattern", "**/*.{" + ",".join(sorted(SOURCE_EXTS)) + "}",
             "--ignore", ",".join(_ignore_globs(config)),
             *config.include,
         ]
@@ -65,13 +68,16 @@ def explain(config: Config, top: int) -> list[str]:
     lines = [summary]
     per_file: dict[str, int] = {}
     for dup in duplicates:
-        dup_lines = int(dup.get("lines", 0))
+        fallback = int(dup.get("lines", 0))
         for side in ("firstFile", "secondFile"):
-            name = dup.get(side, {}).get("name")
+            f = dup.get(side, {})
+            name = f.get("name")
             if not name:
                 continue
+            start, end = f.get("start"), f.get("end")
+            span = (end - start + 1) if isinstance(start, int) and isinstance(end, int) else fallback
             rel = relativize(config.root, name)
-            per_file[rel] = per_file.get(rel, 0) + dup_lines
+            per_file[rel] = per_file.get(rel, 0) + span
     lines.extend(
         f"{n:>5} líneas dup  {rel}"
         for rel, n in sorted(per_file.items(), key=lambda kv: kv[1], reverse=True)[:top]

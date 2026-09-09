@@ -9,6 +9,7 @@ COLLECTORS = [complexity, duplication, lint, tests_ratio]
 
 # Metric group name -> collector module, keyed the same way as metrics.GROUPS.
 EXPLAINERS = {"complexity": complexity, "duplication": duplication, "lint": lint, "tests": tests_ratio}
+assert set(EXPLAINERS) == set(GROUPS), "EXPLAINERS must cover exactly the metrics.GROUPS keys"
 
 
 def collect_all(config: Config) -> tuple[dict[str, float], dict[str, str]]:
@@ -28,4 +29,10 @@ def explain_all(config: Config, top: int, groups: list[str] | None = None) -> di
     unknown = [g for g in selected if g not in EXPLAINERS]
     if unknown:
         raise ConfigError(f"unknown metric group: {', '.join(unknown)} (known: {', '.join(GROUPS)})")
-    return {name: EXPLAINERS[name].explain(config, top) for name in selected}
+    sections: dict[str, list[str]] = {}
+    for name in selected:
+        try:
+            sections[name] = EXPLAINERS[name].explain(config, top)
+        except CollectorError as e:
+            sections[name] = [f"(no disponible: {e})"]
+    return sections

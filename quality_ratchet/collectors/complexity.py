@@ -39,7 +39,11 @@ def _lizard_rows(config: Config) -> list[dict]:
             nloc, ccn = int(row[_COL_NLOC]), int(row[_COL_CCN])
         except ValueError:
             continue  # header or noise
-        rows.append({"nloc": nloc, "ccn": ccn, "file": row[_COL_FILE], "function": row[_COL_FUNCTION]})
+        # "idx" identifies this row uniquely (by position), so explain() can dedupe by
+        # identity rather than by value tuple, which two distinct functions could share.
+        rows.append(
+            {"idx": len(rows), "nloc": nloc, "ccn": ccn, "file": row[_COL_FILE], "function": row[_COL_FUNCTION]}
+        )
     if not rows and proc.stdout.strip():
         raise CollectorError("lizard: no parsable rows in --csv output")
     return rows
@@ -54,31 +58,33 @@ def collect(config: Config) -> dict[str, float]:
     return {"ccn_over_15": over, "max_ccn": max_ccn, "long_functions": long_functions}
 
 
+def _ccn_row(config: Config, r: dict) -> str:
+    return f"CCN {r['ccn']:>3}  NLOC {r['nloc']:>4}  {relativize(config.root, r['file'])}  {r['function']}"
+
+
+def _nloc_row(config: Config, r: dict) -> str:
+    return f"NLOC {r['nloc']:>4}  CCN {r['ccn']:>3}  {relativize(config.root, r['file'])}  {r['function']}"
+
+
 def explain(config: Config, top: int) -> list[str]:
     rows = _lizard_rows(config)
-    complex_rows = sorted(
-        (r for r in rows if r["ccn"] > config.ccn_threshold), key=lambda r: r["ccn"], reverse=True
-    )[:top]
-    lines = [
-        f"CCN {r['ccn']:>3}  NLOC {r['nloc']:>4}  {relativize(config.root, r['file'])}  {r['function']}"
-        for r in complex_rows
-    ]
-    shown = {(r["file"], r["function"], r["nloc"], r["ccn"]) for r in complex_rows}
+    over_threshold = [r for r in rows if r["ccn"] > config.ccn_threshold]
+    if over_threshold:
+        complex_rows = sorted(over_threshold, key=lambda r: r["ccn"], reverse=True)[:top]
+        lines = [_ccn_row(config, r) for r in complex_rows]
+    else:
+        complex_rows = sorted(rows, key=lambda r: r["ccn"], reverse=True)[:top]
+        lines = [f"-- top CCN (ninguna supera el umbral {config.ccn_threshold})"]
+        lines.extend(_ccn_row(config, r) for r in complex_rows)
+    shown = {r["idx"] for r in complex_rows}
     long_rows = sorted(
-        (
-            r
-            for r in rows
-            if r["nloc"] > config.function_nloc_threshold
-            and (r["file"], r["function"], r["nloc"], r["ccn"]) not in shown
-        ),
+        (r for r in rows if r["nloc"] > config.function_nloc_threshold and r["idx"] not in shown),
         key=lambda r: r["nloc"],
         reverse=True,
     )[:top]
-    lines.append(f"-- long functions (NLOC > {config.function_nloc_threshold})")
-    lines.extend(
-        f"NLOC {r['nloc']:>4}  CCN {r['ccn']:>3}  {relativize(config.root, r['file'])}  {r['function']}"
-        for r in long_rows
-    )
+    if long_rows:
+        lines.append(f"-- funciones largas (NLOC > {config.function_nloc_threshold})")
+        lines.extend(_nloc_row(config, r) for r in long_rows)
     return lines
 
 

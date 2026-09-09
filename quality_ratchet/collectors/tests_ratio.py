@@ -62,15 +62,18 @@ def versions(config: Config) -> dict[str, str]:
 
 
 def explain(config: Config, top: int) -> list[str]:
-    rows = []
+    groups: dict[str, list[str]] = {}
     for entry in config.include:
-        sub = replace(config, include=[entry])
+        groups.setdefault(entry.split("/", 1)[0], []).append(entry)
+    rows = []
+    for label, entries in groups.items():
+        sub = replace(config, include=entries)
         tests = count_test_functions(sub)
         loc = production_loc(sub)
         ratio = round(tests / (loc / 1000), 2) if loc else 0.0
-        rows.append((ratio, tests, loc, entry))
+        rows.append((ratio, tests, loc, label))
     rows.sort(key=lambda r: r[0])
     return [
-        f"{ratio:>7.2f} tests/kLOC  tests {tests:>5}  LOC {loc:>7}  {entry}"
-        for ratio, tests, loc, entry in rows[:top]
+        f"{ratio:>7.2f} tests/kLOC  tests {tests:>5}  LOC {loc:>7}  {label}"
+        for ratio, tests, loc, label in rows[:top]
     ]

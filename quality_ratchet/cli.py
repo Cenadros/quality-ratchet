@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import os
 import subprocess
 import sys
@@ -119,6 +120,8 @@ def cmd_update(args: argparse.Namespace) -> int:
 
 
 def cmd_explain(args: argparse.Namespace) -> int:
+    if args.top < 1:
+        raise ConfigError(f"--top must be >= 1 (got {args.top})")
     config = load_config(Path(args.root))
     names = [args.metric] if args.metric else list(GROUPS)
     sections = explain_all(config, args.top, names)
@@ -182,8 +185,16 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _package_version() -> str:
+    try:
+        return importlib.metadata.version("quality-ratchet")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="quality-ratchet", description="Monotonic code-quality gate")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {_package_version()}")
     parser.add_argument("--root", default=".", help="project root (default: cwd)")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("check", help="compare against baseline; exit 1 on regression")

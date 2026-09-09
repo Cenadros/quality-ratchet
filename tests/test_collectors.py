@@ -81,6 +81,19 @@ def test_duplication_ignores_test_dirs(fixture_repo, tmp_path):
     assert after == before
 
 
+def test_duplication_ignores_non_source_extensions(fixture_repo, tmp_path):
+    # Work on a private copy so we don't mutate the session-scoped fixture repo.
+    repo = tmp_path / "repo"
+    shutil.copytree(fixture_repo, repo)
+    cfg = Config(root=repo, include=["Sources", "src"], tests_dirs=["**/*Tests/**", "**/src/test/**"])
+    before = duplication.collect(cfg)["duplication_pct"]
+    text = "\n".join(f"line {i}" for i in range(40))
+    (repo / "src" / "main" / "notes_a.txt").write_text(text)
+    (repo / "src" / "main" / "notes_b.txt").write_text(text)
+    after = duplication.collect(cfg)["duplication_pct"]
+    assert after == before
+
+
 def test_lint_counts_swiftlint_json(fixture_repo, monkeypatch):
     fake = subprocess.CompletedProcess(args=["swiftlint"], returncode=0, stdout='[{"rule_id":"a"},{"rule_id":"b"}]', stderr="")
     calls = []

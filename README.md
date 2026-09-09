@@ -96,22 +96,23 @@ quality-ratchet explain --top 5      # fewer rows per group
 quality-ratchet explain --metric complexity   # one group only (complexity|duplication|lint|tests)
 ```
 
-It never writes the baseline and always exits 0 — it's informational, like `report`. Sample output:
+It never writes the baseline: exit is 0 except for invalid arguments (e.g. `--top` below 1), which exit 2 like any other config error. A tool that's missing or fails for one metric group doesn't abort the others — that section prints `(no disponible: <reason>)` instead. Sample output:
 
 ```
 ## complexity
 CCN  23  NLOC   35  quality_ratchet/baseline.py  ratchet
--- long functions (NLOC > 60)
 ## duplication
 clones: 0  duplicated lines: 0  (0%)
 ## lint
 -- ruff: por regla
 -- ruff: por fichero
 ## tests
-  78.14 tests/kLOC  tests    64  LOC     819  .
+  88.97 tests/kLOC  tests    75  LOC     843  .
 ```
 
-An empty group prints `(nada)` instead of rows.
+When no function exceeds the CCN threshold, `complexity` falls back to the top-N functions by CCN under a `-- top CCN (ninguna supera el umbral N)` sub-header instead of an empty section; a `-- funciones largas (NLOC > N)` sub-header only appears when there's at least one function to list under it. `tests` groups `include` entries by their first path segment (`ios`, `android`, `firebase/functions/src` and `firebase/functions/test` both roll up under `firebase`), one row per group. An empty group prints `(nada)` instead of rows.
+
+Since 0.2.1, `duplication`'s jscpd scan is restricted to source extensions (the same set `tests_per_kloc` treats as code) — a duplicated non-code file (fonts, generated JSON fixtures, licenses…) no longer moves `duplication_pct`. If you're carrying an existing baseline, re-anchor once after upgrading: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.1"`.
 
 ## GitHub Action
 

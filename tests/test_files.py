@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 
 from quality_ratchet.config import Config
-from quality_ratchet.files import is_excluded, is_test_path, iter_source_files
+from quality_ratchet.files import is_excluded, is_test_path, iter_source_files, relativize
 
 
 def test_is_excluded_by_dir_name_and_glob():
@@ -31,3 +32,29 @@ def test_iter_source_files_respects_include_exclude_and_exts(tmp_path: Path):
     (tmp_path / "other" / "b.swift").write_text("func b() {}\n")
     cfg = Config(root=tmp_path, include=["src", "build"], exclude=["build"])
     assert iter_source_files(cfg) == [tmp_path / "src" / "a.kt"]
+
+
+def test_relativize_with_relative_root(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg = Config(root=Path("."))
+    abs_path = str(tmp_path / "Sources" / "A.swift")
+    assert relativize(cfg.root, abs_path) == "Sources/A.swift"
+
+
+def test_relativize_symlinked_root_both_directions(tmp_path: Path):
+    real_root = Path(os.path.realpath(tmp_path))
+    # tmp_path may itself go through a symlink (e.g. /tmp -> /private/tmp on macOS);
+    # both the given root and the tool-reported absolute path can land on either side.
+    abs_via_tmp_path = str(tmp_path / "Sources" / "A.swift")
+    assert relativize(real_root, abs_via_tmp_path) == "Sources/A.swift"
+    abs_via_real_root = str(real_root / "Sources" / "B.swift")
+    assert relativize(tmp_path, abs_via_real_root) == "Sources/B.swift"
+
+
+def test_relativize_outside_root_stays_unchanged():
+    outside = "/some/other/place/File.kt"
+    assert relativize(Path("/tmp/project"), outside) == outside
+
+
+def test_relativize_already_relative_passes_through():
+    assert relativize(Path("/tmp/project"), "Sources/A.swift") == "Sources/A.swift"

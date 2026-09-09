@@ -139,6 +139,7 @@ def test_explain_prints_all_sections(repo, capsys):
     assert "## duplication" in out
     assert "## lint" in out
     assert "## tests" in out
+    assert "classify" in out
 
 
 def test_explain_with_metric_filters_to_one_section(repo, capsys):
@@ -153,6 +154,20 @@ def test_explain_with_metric_filters_to_one_section(repo, capsys):
 def test_explain_never_writes_baseline(repo):
     assert main(["--root", str(repo), "explain"]) == 0
     assert not (repo / "quality-baseline.json").exists()
+
+
+def test_explain_rejects_non_positive_top(repo, capsys):
+    assert main(["--root", str(repo), "explain", "--top", "0"]) == 2
+    assert "--top" in capsys.readouterr().err
+
+
+def test_version_flag(capsys):
+    import importlib.metadata
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert importlib.metadata.version("quality-ratchet") in capsys.readouterr().out
 
 
 def test_init_writes_config_and_baseline(tmp_path):
