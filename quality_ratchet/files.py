@@ -41,6 +41,17 @@ def is_test_path(rel: str, tests_dirs: list[str]) -> bool:
     return False
 
 
+def relativize(root: Path, path: str) -> str:
+    """Return `path` relative to `root` when it is inside root; otherwise unchanged."""
+    p = Path(path)
+    if not p.is_absolute():
+        return p.as_posix()
+    try:
+        return p.relative_to(root).as_posix()
+    except ValueError:
+        return p.as_posix()
+
+
 def iter_source_files(config: Config) -> list[Path]:
     found: set[Path] = set()
     root = config.root

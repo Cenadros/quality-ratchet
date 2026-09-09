@@ -11,10 +11,11 @@ import yaml
 
 from . import github
 from .baseline import Baseline, Delta, compare, load_baseline, new_baseline, ratchet, save_baseline
-from .collectors import collect_all
+from .collectors import collect_all, explain_all
 from .config import CONFIG_FILENAME, DEFAULT_EXCLUDE, Config, config_hash, load_config
 from .errors import CollectorError, ConfigError
 from .files import is_excluded
+from .metrics import GROUPS
 from .score import compute_score
 
 STATUS_LABEL = {"ok": "ok", "improved": "ok  ↑", "fail": "FAIL", "new": "new"}
@@ -117,6 +118,20 @@ def cmd_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_explain(args: argparse.Namespace) -> int:
+    config = load_config(Path(args.root))
+    names = [args.metric] if args.metric else list(GROUPS)
+    sections = explain_all(config, args.top, names)
+    for name in names:
+        print(f"## {name}")
+        rows = sections[name]
+        for row in rows:
+            print(row)
+        if not rows:
+            print("(nada)")
+    return 0
+
+
 def _find_swiftlint_config(root: Path) -> Path | None:
     for dirpath, dirnames, filenames in os.walk(root):
         rel_dir = Path(dirpath).relative_to(root).as_posix()
@@ -180,6 +195,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_update)
     sub.add_parser("report", help="print metrics and score; always exit 0").set_defaults(func=cmd_report)
     sub.add_parser("init", help="create quality-ratchet.yml and the initial baseline").set_defaults(func=cmd_init)
+    p = sub.add_parser("explain", help="list the top offenders behind each metric; always exit 0")
+    p.add_argument("--top", type=int, default=10, help="rows per section (default: 10)")
+    p.add_argument("--metric", choices=list(GROUPS), help="only this metric group (default: all)")
+    p.set_defaults(func=cmd_explain)
     return parser
 
 

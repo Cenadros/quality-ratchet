@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from pathlib import Path
 
 from ..config import Config
@@ -58,3 +59,18 @@ def collect(config: Config) -> dict[str, float]:
 
 def versions(config: Config) -> dict[str, str]:
     return {"scc": tool_version(["scc", "--version"])}
+
+
+def explain(config: Config, top: int) -> list[str]:
+    rows = []
+    for entry in config.include:
+        sub = replace(config, include=[entry])
+        tests = count_test_functions(sub)
+        loc = production_loc(sub)
+        ratio = round(tests / (loc / 1000), 2) if loc else 0.0
+        rows.append((ratio, tests, loc, entry))
+    rows.sort(key=lambda r: r[0])
+    return [
+        f"{ratio:>7.2f} tests/kLOC  tests {tests:>5}  LOC {loc:>7}  {entry}"
+        for ratio, tests, loc, entry in rows[:top]
+    ]

@@ -1,8 +1,8 @@
 name: quality-ratchet
-description: Monotonic code-quality gate (complexity, duplication, lint, tests ratio); command can be init, check, update or report
+description: Monotonic code-quality gate (complexity, duplication, lint, tests ratio); command can be init, check, update, report or explain
 inputs:
   command:
-    description: "init | check | update | report"
+    description: "init | check | update | report | explain"
     default: check
   working-directory:
     description: Project root containing quality-ratchet.yml

@@ -86,6 +86,33 @@ The six components are averaged per group (`complexity`, `duplication`, `lint`, 
 
 `report` never writes a baseline (it's read-only, always exits 0). `check` creates the baseline on its first run in a repo. A metric that exists in the collectors but is missing from an older, already-committed baseline shows up as `new` in the table and is anchored at its current value the next time the baseline is written (by `check` on first run, or `update`).
 
+## Explain
+
+`check`/`report` only print aggregates — `explain` lists the actual offenders behind each metric, so you don't have to run lizard/jscpd/swiftlint by hand:
+
+```bash
+quality-ratchet explain              # top 10 offenders per metric group
+quality-ratchet explain --top 5      # fewer rows per group
+quality-ratchet explain --metric complexity   # one group only (complexity|duplication|lint|tests)
+```
+
+It never writes the baseline and always exits 0 — it's informational, like `report`. Sample output:
+
+```
+## complexity
+CCN  23  NLOC   35  quality_ratchet/baseline.py  ratchet
+-- long functions (NLOC > 60)
+## duplication
+clones: 0  duplicated lines: 0  (0%)
+## lint
+-- ruff: por regla
+-- ruff: por fichero
+## tests
+  78.14 tests/kLOC  tests    64  LOC     819  .
+```
+
+An empty group prints `(nada)` instead of rows.
+
 ## GitHub Action
 
 The action only installs `quality-ratchet` itself plus `lizard`/`jscpd`/`scc` — any linter you configure under `linters:` (swiftlint, eslint, ruff…) is your responsibility to install in a prior step, exactly like any other CI dependency. `swiftlint` in particular needs a macOS runner (`runs-on: macos-latest`). Run the check on `pull_request`, never `pull_request_target`: the PR branch controls `quality-ratchet.yml` itself, and `pull_request_target` would run that (untrusted) config with write-level secrets.

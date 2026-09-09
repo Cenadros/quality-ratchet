@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from ..config import Config
-from ..errors import CollectorError
-from ..metrics import METRIC_SPECS
+from ..errors import CollectorError, ConfigError
+from ..metrics import GROUPS, METRIC_SPECS
 from . import complexity, duplication, lint, tests_ratio
 
 COLLECTORS = [complexity, duplication, lint, tests_ratio]
+
+# Metric group name -> collector module, keyed the same way as metrics.GROUPS.
+EXPLAINERS = {"complexity": complexity, "duplication": duplication, "lint": lint, "tests": tests_ratio}
 
 
 def collect_all(config: Config) -> tuple[dict[str, float], dict[str, str]]:
@@ -18,3 +21,11 @@ def collect_all(config: Config) -> tuple[dict[str, float], dict[str, str]]:
     if missing:
         raise CollectorError(f"collectors produced no value for: {', '.join(missing)}")
     return metrics, versions
+
+
+def explain_all(config: Config, top: int, groups: list[str] | None = None) -> dict[str, list[str]]:
+    selected = list(GROUPS) if groups is None else groups
+    unknown = [g for g in selected if g not in EXPLAINERS]
+    if unknown:
+        raise ConfigError(f"unknown metric group: {', '.join(unknown)} (known: {', '.join(GROUPS)})")
+    return {name: EXPLAINERS[name].explain(config, top) for name in selected}

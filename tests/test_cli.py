@@ -132,6 +132,29 @@ def test_report_without_baseline_does_not_write(repo):
     assert not (repo / "quality-baseline.json").exists()
 
 
+def test_explain_prints_all_sections(repo, capsys):
+    assert main(["--root", str(repo), "explain"]) == 0
+    out = capsys.readouterr().out
+    assert "## complexity" in out
+    assert "## duplication" in out
+    assert "## lint" in out
+    assert "## tests" in out
+
+
+def test_explain_with_metric_filters_to_one_section(repo, capsys):
+    assert main(["--root", str(repo), "explain", "--metric", "complexity", "--top", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "## complexity" in out
+    assert "## duplication" not in out
+    ccn_rows = [line for line in out.splitlines() if line.startswith("CCN ")]
+    assert len(ccn_rows) == 1
+
+
+def test_explain_never_writes_baseline(repo):
+    assert main(["--root", str(repo), "explain"]) == 0
+    assert not (repo / "quality-baseline.json").exists()
+
+
 def test_init_writes_config_and_baseline(tmp_path):
     write_fixture_repo(tmp_path)
     (tmp_path / "Sources" / ".swiftlint.yml").write_text("disabled_rules: []\n")
