@@ -18,12 +18,20 @@ Monotonic code-quality gate: six metrics (complexity, duplication, lint, tests r
 ## Local install
 
 ```bash
+pipx install "git+https://github.com/Cenadros/quality-ratchet@v0"
+npm install -g jscpd@4.3.0
+go install github.com/boyter/scc/v3@v3.7.0
+```
+
+`pipx` is the recommended way to install the CLI in an isolated environment. `pip install` works the same way if you'd rather manage the environment yourself:
+
+```bash
 pip install git+https://github.com/Cenadros/quality-ratchet@v0
 npm install -g jscpd@4.3.0
 go install github.com/boyter/scc/v3@v3.7.0
 ```
 
-Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above, pinned exactly (`==1.24.0`) for the same reason.
+Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above, pinned exactly (`==1.24.0`) for the same reason — `quality-ratchet` invokes it as `python -m lizard`, so no separate console script or `pipx inject` is needed.
 
 ## Quickstart
 

@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import csv
+import importlib.metadata
 import io
+import sys
 
 from ..config import Config
 from ..errors import CollectorError
 from ..files import LIZARD_EXTS, is_test_path, iter_source_files
-from .base import require_tool, run, tool_version
+from .base import run
 
-INSTALL = "pip install lizard"
+INSTALL = "pip install lizard==1.24.0"
 
 
 def collect(config: Config) -> dict[str, float]:
-    require_tool("lizard", INSTALL)
+    try:
+        import lizard  # noqa: F401
+    except ImportError as e:
+        raise CollectorError(f"lizard not importable: {INSTALL}") from e
     files = [
         str(p)
         for p in iter_source_files(config)
@@ -21,7 +26,7 @@ def collect(config: Config) -> dict[str, float]:
     ]
     if not files:
         return {"ccn_over_15": 0, "max_ccn": 0, "long_functions": 0}
-    proc = run(["lizard", "--csv", *files])
+    proc = run([sys.executable, "-m", "lizard", "--csv", *files])
     over = long_functions = max_ccn = 0
     rows_parsed = 0
     for row in csv.reader(io.StringIO(proc.stdout)):
@@ -44,4 +49,8 @@ def collect(config: Config) -> dict[str, float]:
 
 
 def versions(config: Config) -> dict[str, str]:
-    return {"lizard": tool_version(["lizard", "--version"])}
+    try:
+        version = importlib.metadata.version("lizard")
+    except importlib.metadata.PackageNotFoundError:
+        version = "unknown"
+    return {"lizard": version}

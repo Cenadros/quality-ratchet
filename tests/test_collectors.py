@@ -37,7 +37,6 @@ def test_complexity_versions(fixture_config):
 
 def test_complexity_unparsable_output_fails(fixture_config, monkeypatch):
     fake = subprocess.CompletedProcess(args=["lizard"], returncode=0, stdout="garbage\n", stderr="")
-    monkeypatch.setattr(complexity, "require_tool", lambda name, hint: name)
     monkeypatch.setattr(complexity, "run", lambda cmd, cwd=None, check=True: fake)
     with pytest.raises(CollectorError, match="no parsable rows"):
         complexity.collect(fixture_config)

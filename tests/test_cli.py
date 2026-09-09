@@ -98,6 +98,8 @@ def test_update_after_config_change_requires_force(repo, capsys):
 
 
 def test_missing_tool_exits_2(repo, monkeypatch, capsys):
+    # lizard is imported (not a console script), so with PATH broken the first
+    # collector to fail on a missing executable is duplication's jscpd.
     monkeypatch.setenv("PATH", "/nonexistent")
     assert main(["--root", str(repo), "check"]) == 2
     assert "not found" in capsys.readouterr().err
