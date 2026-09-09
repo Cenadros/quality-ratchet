@@ -42,12 +42,16 @@ def is_test_path(rel: str, tests_dirs: list[str]) -> bool:
 
 
 def relativize(root: Path, path: str) -> str:
-    """Return `path` relative to `root` when it is inside root; otherwise unchanged."""
+    """Return `path` relative to `root` when it is inside root; otherwise unchanged.
+
+    Tools like swiftlint report absolute paths regardless of `root` being relative
+    (e.g. the default `--root .`), so both sides are resolved before comparing.
+    """
     p = Path(path)
     if not p.is_absolute():
         return p.as_posix()
     try:
-        return p.relative_to(root).as_posix()
+        return p.resolve().relative_to(root.resolve()).as_posix()
     except ValueError:
         return p.as_posix()
 
