@@ -1,8 +1,8 @@
 name: quality-ratchet
-description: Monotonic code-quality gate (complexity, duplication, lint, tests ratio)
+description: Monotonic code-quality gate (complexity, duplication, lint, tests ratio); command can be init, check, update or report
 inputs:
   command:
-    description: "check | update | report"
+    description: "init | check | update | report"
     default: check
   working-directory:
     description: Project root containing quality-ratchet.yml
@@ -22,6 +22,7 @@ runs:
     - uses: actions/setup-go@v5
       with:
         go-version: "1.25"
+        cache: false
     - name: Install quality-ratchet and tools
       shell: bash
       run: |
