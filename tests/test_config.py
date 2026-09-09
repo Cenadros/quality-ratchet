@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from quality_ratchet.config import DEFAULT_EXCLUDE, DEFAULT_WEIGHTS, load_config
+from quality_ratchet.config import DEFAULT_EXCLUDE, DEFAULT_WEIGHTS, Config, config_hash, load_config
 
 
 def test_defaults_when_config_missing(tmp_path: Path, capsys):
@@ -25,7 +25,6 @@ def test_reads_yaml_and_merges_patterns(tmp_path: Path):
         "duplication: {min_tokens: 70}\n"
         "linters:\n  swiftlint: {cwd: ios/Turnify}\n"
         "score:\n  weights: {lint: 0.5}\n"
-        "tool_versions: {lizard: '1.17.10'}\n"
     )
     cfg = load_config(tmp_path)
     assert cfg.include == ["ios", "android"]
@@ -37,4 +36,12 @@ def test_reads_yaml_and_merges_patterns(tmp_path: Path):
     assert cfg.duplication_min_tokens == 70
     assert cfg.linters == {"swiftlint": {"cwd": "ios/Turnify"}}
     assert cfg.weights["lint"] == 0.5 and cfg.weights["tests"] == 0.20
-    assert cfg.tool_versions == {"lizard": "1.17.10"}
+
+
+def test_config_hash_ignores_root_but_reacts_to_content(tmp_path: Path):
+    cfg_a = Config(root=tmp_path)
+    cfg_b = Config(root=tmp_path / "elsewhere")
+    assert config_hash(cfg_a) == config_hash(cfg_b)
+
+    cfg_c = Config(root=tmp_path, exclude=["other"])
+    assert config_hash(cfg_a) != config_hash(cfg_c)

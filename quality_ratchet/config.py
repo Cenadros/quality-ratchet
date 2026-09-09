@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import yaml
@@ -39,7 +41,6 @@ class Config:
     duplication_min_tokens: int = 50
     linters: dict[str, dict] = field(default_factory=dict)
     weights: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_WEIGHTS))
-    tool_versions: dict[str, str] = field(default_factory=dict)
 
     @property
     def baseline_path(self) -> Path:
@@ -65,5 +66,11 @@ def load_config(root: Path) -> Config:
         duplication_min_tokens=int((raw.get("duplication") or {}).get("min_tokens", 50)),
         linters=dict(raw.get("linters") or {}),
         weights={**DEFAULT_WEIGHTS, **((raw.get("score") or {}).get("weights") or {})},
-        tool_versions=dict(raw.get("tool_versions") or {}),
     )
+
+
+def config_hash(config: Config) -> str:
+    """Short, stable fingerprint of what Config measures (everything but `root`)."""
+    fields = {k: v for k, v in asdict(config).items() if k != "root"}
+    digest = hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
+    return digest[:12]

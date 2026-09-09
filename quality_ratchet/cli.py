@@ -12,7 +12,7 @@ import yaml
 from . import github
 from .baseline import Baseline, Delta, compare, load_baseline, new_baseline, ratchet, save_baseline
 from .collectors import collect_all
-from .config import CONFIG_FILENAME, DEFAULT_EXCLUDE, Config, load_config
+from .config import CONFIG_FILENAME, DEFAULT_EXCLUDE, Config, config_hash, load_config
 from .errors import CollectorError, ConfigError
 from .files import is_excluded
 from .score import compute_score
@@ -49,6 +49,13 @@ def warn_versions(baseline: Baseline, versions: dict[str, str]) -> None:
                   f"Re-anchor with: quality-ratchet update --force --reason 'bump {tool}'", file=sys.stderr)
 
 
+def warn_config_change(baseline: Baseline, config: Config) -> None:
+    current_hash = config_hash(config)
+    if baseline.config_hash and baseline.config_hash != current_hash:
+        print("warning: quality-ratchet.yml changed since the baseline; update will require --force --reason",
+              file=sys.stderr)
+
+
 def _measure(root: Path) -> tuple[Config, dict[str, float], dict[str, str]]:
     config = load_config(root)
     current, versions = collect_all(config)
@@ -56,7 +63,7 @@ def _measure(root: Path) -> tuple[Config, dict[str, float], dict[str, str]]:
 
 
 def _create_baseline(config: Config, current: dict[str, float], versions: dict[str, str]) -> Baseline:
-    baseline = new_baseline(current, versions, git_commit(config.root), config.weights)
+    baseline = new_baseline(current, versions, git_commit(config.root), config.weights, config_hash(config))
     save_baseline(config.baseline_path, baseline)
     print(f"baseline inicial creada en {config.baseline_path.name} (score {baseline.score}), nada que comparar")
     return baseline
@@ -81,6 +88,7 @@ def cmd_check(args: argparse.Namespace, gate: bool = True) -> int:
     failed = any(d.status == "fail" for d in deltas)
     print_table(deltas, baseline.score, score, failed)
     warn_versions(baseline, versions)
+    warn_config_change(baseline, config)
     if getattr(args, "github", False):
         github.emit(deltas, baseline.score, score)
     return 1 if (gate and failed) else 0
@@ -97,7 +105,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         _create_baseline(config, current, versions)
         return 0
     new, changed = ratchet(baseline, current, versions, git_commit(config.root), config.weights,
-                           force=args.force, reason=args.reason)
+                           config_hash(config), force=args.force, reason=args.reason)
     ignored = [d.name for d in compare(baseline, current) if d.status == "fail" and d.name not in changed]
     for name in ignored:
         print(f"warning: {name} empeoró; ignorado (usa --force --reason para aceptarlo)")

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
 from ..errors import CollectorError
+
+_VERSION_RE = re.compile(r"\d+\.\d+(?:\.\d+)?")
 
 
 def require_tool(name: str, install_hint: str) -> str:
@@ -29,5 +32,6 @@ def tool_version(cmd: list[str]) -> str:
         proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     except OSError:
         return "unknown"
-    text = (proc.stdout or proc.stderr).strip()
-    return text.splitlines()[0].strip() if text else "unknown"
+    text = proc.stdout or proc.stderr
+    match = _VERSION_RE.search(text)
+    return match.group(0) if match else "unknown"

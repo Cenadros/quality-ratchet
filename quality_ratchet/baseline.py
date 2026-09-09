@@ -29,6 +29,7 @@ class Baseline:
     metrics: dict[str, Metric]
     score: int
     history: list[dict] = field(default_factory=list)
+    config_hash: str = ""
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -45,6 +46,7 @@ class Baseline:
             metrics={k: Metric(**m) for k, m in d["metrics"].items()},
             score=int(d["score"]),
             history=list(d.get("history", [])),
+            config_hash=str(d.get("config_hash", "")),
         )
 
 
@@ -71,12 +73,12 @@ def save_baseline(path: Path, baseline: Baseline) -> None:
 
 
 def new_baseline(current: dict[str, float], tool_versions: dict[str, str], commit: str,
-                 weights: dict[str, float]) -> Baseline:
+                 weights: dict[str, float], config_hash: str) -> Baseline:
     initial = dict(current)
     metrics = {name: Metric(value, *METRIC_SPECS[name]) for name, value in current.items() if name in METRIC_SPECS}
     return Baseline(
         version=1, commit=commit, tool_versions=dict(tool_versions), initial=initial, metrics=metrics,
-        score=compute_score(current, initial, weights),
+        score=compute_score(current, initial, weights), config_hash=config_hash,
     )
 
 
@@ -103,9 +105,15 @@ def compare(baseline: Baseline, current: dict[str, float]) -> list[Delta]:
 
 
 def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[str, str], commit: str,
-            weights: dict[str, float], force: bool = False, reason: str | None = None) -> tuple[Baseline, list[str]]:
+            weights: dict[str, float], config_hash: str, force: bool = False,
+            reason: str | None = None) -> tuple[Baseline, list[str]]:
     if force and not reason:
         raise ConfigError("--force requires --reason")
+    if baseline.config_hash and baseline.config_hash != config_hash and not force:
+        raise ConfigError(
+            f"config changed since baseline (hash {baseline.config_hash} → {config_hash}): "
+            "re-anchor with update --force --reason '<why>'"
+        )
     new = copy.deepcopy(baseline)
     changed: list[str] = []
     for d in compare(baseline, current):
@@ -128,4 +136,6 @@ def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[s
         new.commit = commit
         new.tool_versions = dict(tool_versions)
         new.score = compute_score({n: m.value for n, m in new.metrics.items()}, new.initial, weights)
+    if force or not baseline.config_hash:
+        new.config_hash = config_hash
     return new, changed

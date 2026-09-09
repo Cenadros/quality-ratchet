@@ -84,6 +84,19 @@ def test_update_force_requires_reason(repo, capsys):
     assert data["history"][-1]["reason"] == "accept"
 
 
+def test_update_after_config_change_requires_force(repo, capsys):
+    main(["--root", str(repo), "check"])
+    before_hash = json.loads((repo / "quality-baseline.json").read_text())["config_hash"]
+    with (repo / "quality-ratchet.yml").open("a") as f:
+        f.write("exclude: [Sources]\n")
+    assert main(["--root", str(repo), "update"]) == 2
+    err = capsys.readouterr().err
+    assert "--force" in err and "--reason" in err
+    assert main(["--root", str(repo), "update", "--force", "--reason", "x"]) == 0
+    data = json.loads((repo / "quality-baseline.json").read_text())
+    assert data["config_hash"] != before_hash
+
+
 def test_missing_tool_exits_2(repo, monkeypatch, capsys):
     monkeypatch.setenv("PATH", "/nonexistent")
     assert main(["--root", str(repo), "check"]) == 2
