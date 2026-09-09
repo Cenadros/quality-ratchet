@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "commit": "5080ea9",
+  "commit": "de95bd5",
   "tool_versions": {
     "lizard": "1.24.0",
     "jscpd": "4.3.0",
@@ -42,12 +42,12 @@
       "tolerance": 0.0
     },
     "tests_per_kloc": {
-      "value": 78.14,
+      "value": 88.97,
       "better": "higher",
       "tolerance": 0.2
     }
   },
-  "score": 50,
+  "score": 51,
   "history": [],
   "config_hash": "a4a55fc8cfd5"
 }
