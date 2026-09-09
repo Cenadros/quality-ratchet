@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "commit": "e3076c2",
+  "commit": "5080ea9",
   "tool_versions": {
     "lizard": "1.24.0",
     "jscpd": "4.3.0",
@@ -8,11 +8,11 @@
     "scc": "3.7.0"
   },
   "initial": {
-    "ccn_over_15": 1,
-    "max_ccn": 23,
-    "long_functions": 0,
+    "ccn_over_15": 1.0,
+    "max_ccn": 23.0,
+    "long_functions": 0.0,
     "duplication_pct": 0.0,
-    "lint_warnings": 0,
+    "lint_warnings": 0.0,
     "tests_per_kloc": 77.84
   },
   "metrics": {
@@ -42,7 +42,7 @@
       "tolerance": 0.0
     },
     "tests_per_kloc": {
-      "value": 77.84,
+      "value": 78.14,
       "better": "higher",
       "tolerance": 0.2
     }
