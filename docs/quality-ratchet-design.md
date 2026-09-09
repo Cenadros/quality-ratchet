@@ -110,12 +110,14 @@ Excludes por defecto (sin config): `build/`, `node_modules/`, `.build/`, `Pods/`
 
 Score 0-100, media ponderada de cuatro componentes normalizados contra `initial`. La baseline inicial ancla el score en 50: hay recorrido en ambas direcciones y reducir una métrica a cero la lleva a 100.
 
-- Métrica `lower`: `componente = clamp(1 - value / (2 * initial), 0, 1)`. En `initial` vale 0,5; en 0 vale 1; al doblar `initial` vale 0. Si `initial` es 0, el componente vale 1 mientras `value` siga en 0 y 0 en cuanto suba.
-- Métrica `higher`: `componente = clamp(value / (2 * initial), 0, 1)`. En `initial` vale 0,5; al doblar vale 1.
+- Métrica `lower`: `componente = clamp(1 - value / (2 * initial), 0, 1)`. En `initial` vale 0,5; en 0 vale 1; al doblar `initial` vale 0. Si `initial` es 0, el componente se queda neutral (0,5) mientras `value` siga en 0 y cae a 0,0 en cuanto suba — un repo sin warnings de partida no se lleva puntos gratis por no tenerlos.
+- Métrica `higher`: `componente = clamp(value / (2 * initial), 0, 1)`. En `initial` vale 0,5; al doblar vale 1. Si `initial` es 0, el componente vale 1,0 en cuanto `value` sea mayor que 0 (cualquier test vence a ninguno) y se queda neutral (0,5) mientras siga en 0.
 - Componente complejidad = media de las tres métricas de lizard; los otros tres componentes tienen una métrica cada uno.
 - `score = round(100 * Σ peso_i * componente_i)`.
 
 Propiedad exigida: el score no sube si alguna métrica empeora más que su tolerancia. Se garantiza porque el gate corta antes por métrica; el score es informe, no gate.
+
+La baseline guarda además un hash corto de `quality-ratchet.yml` (`config_hash`): un cambio en la config es un evento de re-anchor igual que un bump de versión de herramienta, y `update` lo exige explícito con `--force --reason`.
 
 ### Comandos
 

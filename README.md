@@ -1,6 +1,6 @@
 # quality-ratchet
 
-Monotonic code-quality gate: six metrics (complexity, duplication, lint, tests ratio) are compared against a committed baseline and a PR can only fail if one of them regresses. A single 0-100 Quality Score summarizes the baseline, anchored at 50 the day the baseline is created. The baseline never loosens on its own — the only way to accept a regression is `update --force --reason "<why>"`.
+Monotonic code-quality gate: six metrics (complexity, duplication, lint, tests ratio) are compared against a committed baseline, and a PR fails if any metric regresses beyond its tolerance. A single 0-100 Quality Score summarizes the baseline, anchored at 50 the day the baseline is created. The baseline never loosens on its own — the only way to accept a regression is `update --force --reason "<why>"`.
 
 ## Metrics
 
@@ -23,7 +23,7 @@ npm install -g jscpd@4.3.0
 go install github.com/boyter/scc/v3@v3.7.0
 ```
 
-Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above (pinned loosely, `>=1.17.10`; this repo dogfoods with `1.24.0`).
+Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above, pinned exactly (`==1.24.0`) for the same reason.
 
 ## Quickstart
 
@@ -37,6 +37,8 @@ Commit the two files it creates, `quality-ratchet.yml` and `quality-baseline.jso
 quality-ratchet check   # in PRs — exits 1 on regression
 quality-ratchet update  # on main — ratchets the baseline forward on improvements
 ```
+
+Editing `quality-ratchet.yml` itself (a new `exclude`, a changed threshold, a linter added/removed…) is a re-anchor event, same as a tool version bump: `update` refuses it with exit 2 unless you pass `--force --reason "<why>"`.
 
 ## Config
 
@@ -61,10 +63,6 @@ linters:
   swiftlint: { cwd: ios/Turnify }  # linters to run; keys must be one of swiftlint/eslint/ruff, value can set cwd/args
 score:
   weights: { complexity: 0.30, duplication: 0.25, lint: 0.25, tests: 0.20 }  # group weights for the 0-100 score, must not need to sum to 1 (normalized)
-tool_versions:
-  lizard: "1.17.x"               # informational pin; check warns (does not fail) when the installed tool differs from the baseline's tool_versions
-  jscpd: "4.x"
-  scc: "3.x"
 ```
 
 ## Score
@@ -82,6 +80,8 @@ The six components are averaged per group (`complexity`, `duplication`, `lint`, 
 
 ## GitHub Action
 
+The action only installs `quality-ratchet` itself plus `lizard`/`jscpd`/`scc` — any linter you configure under `linters:` (swiftlint, eslint, ruff…) is your responsibility to install in a prior step, exactly like any other CI dependency. `swiftlint` in particular needs a macOS runner (`runs-on: macos-latest`). Run the check on `pull_request`, never `pull_request_target`: the PR branch controls `quality-ratchet.yml` itself, and `pull_request_target` would run that (untrusted) config with write-level secrets.
+
 ```yaml
 - uses: Cenadros/quality-ratchet@v0
   with:
@@ -97,7 +97,7 @@ dogfood:
     contents: write
   steps:
     - uses: actions/checkout@v4
-    - uses: ./
+    - uses: Cenadros/quality-ratchet@v0
       with:
         command: ${{ github.event_name == 'push' && 'update' || 'check' }}
     - name: Commit ratcheted baseline
@@ -107,7 +107,9 @@ dogfood:
           git config user.name "quality-ratchet[bot]"
           git config user.email "quality-ratchet@users.noreply.github.com"
           score=$(python3 -c "import json;print(json.load(open('quality-baseline.json'))['score'])")
-          git commit -am "chore(quality): baseline ↑ score ${score}"
+          git add quality-baseline.json
+          git commit -m "chore(quality): baseline ↑ score ${score}"
+          git pull --rebase origin main
           git push
         fi
 ```
@@ -125,3 +127,5 @@ Bumping `lizard`/`jscpd`/`scc`/a linter can move the numbers with no code change
 ```bash
 quality-ratchet update --force --reason "bump lizard 1.17→1.18"
 ```
+
+The same applies to `quality-ratchet.yml` itself: changing it is a re-anchor event, and `update` requires `--force --reason` once the config no longer matches the hash recorded in the baseline.
