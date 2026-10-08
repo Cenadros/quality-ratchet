@@ -104,16 +104,44 @@ def compare(baseline: Baseline, current: dict[str, float]) -> list[Delta]:
     return deltas
 
 
-def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[str, str], commit: str,
-            weights: dict[str, float], config_hash: str, force: bool = False,
-            reason: str | None = None) -> tuple[Baseline, list[str]]:
+def _check_ratchet_arguments(baseline: Baseline, config_hash: str, force: bool, reason: str | None,
+                            only: list[str] | None) -> None:
     if force and not reason:
         raise ConfigError("--force requires --reason")
+    if only is not None:
+        if not force:
+            raise ConfigError("--metrics requires --force")
+        unknown = [name for name in only if name not in baseline.metrics]
+        if unknown:
+            raise ConfigError(f"--metrics: not in the baseline: {', '.join(unknown)}")
     if baseline.config_hash and baseline.config_hash != config_hash and not force:
         raise ConfigError(
             f"config changed since baseline (hash {baseline.config_hash} → {config_hash}): "
             "re-anchor with update --force --reason '<why>'"
         )
+
+
+def _reanchor(new: Baseline, baseline: Baseline, current: dict[str, float], reason: str | None,
+              only: list[str] | None) -> None:
+    entry = {
+        "date": date.today().isoformat(), "reason": reason,  # noqa: DTZ011 (local date is intentional)
+        "from": {k: m.value for k, m in baseline.metrics.items()},
+        "to": {k: v for k, v in current.items() if k in METRIC_SPECS},
+    }
+    if only is None:
+        new.initial = dict(entry["to"])
+    else:
+        entry["metrics"] = sorted(only)
+        new.initial.update({k: current[k] for k in only})
+    new.history.append(entry)
+
+
+def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[str, str], commit: str,
+            weights: dict[str, float], config_hash: str, force: bool = False,
+            reason: str | None = None, only: list[str] | None = None) -> tuple[Baseline, list[str]]:
+    """`only` narrows a forced re-anchor to those metrics: the rest keep their value and their
+    initial anchor, so the score does not forget the progress made on them."""
+    _check_ratchet_arguments(baseline, config_hash, force, reason, only)
     new = copy.deepcopy(baseline)
     changed: list[str] = []
     for d in compare(baseline, current):
@@ -122,16 +150,11 @@ def ratchet(baseline: Baseline, current: dict[str, float], tool_versions: dict[s
                 new.metrics[d.name] = Metric(d.now, *METRIC_SPECS[d.name])
                 new.initial[d.name] = d.now
                 changed.append(d.name)
-        elif d.status == "improved" or (force and d.delta != 0):
+        elif d.status == "improved" or (force and d.delta != 0 and (only is None or d.name in only)):
             new.metrics[d.name].value = d.now
             changed.append(d.name)
     if force:
-        new.history.append({
-            "date": date.today().isoformat(), "reason": reason,  # noqa: DTZ011 (local date is intentional)
-            "from": {k: m.value for k, m in baseline.metrics.items()},
-            "to": {k: v for k, v in current.items() if k in METRIC_SPECS},
-        })
-        new.initial = {k: v for k, v in current.items() if k in METRIC_SPECS}
+        _reanchor(new, baseline, current, reason, only)
     if changed or force:
         new.commit = commit
         new.tool_versions = dict(tool_versions)

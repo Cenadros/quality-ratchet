@@ -107,7 +107,8 @@ def cmd_update(args: argparse.Namespace) -> int:
         _create_baseline(config, current, versions)
         return 0
     new, changed = ratchet(baseline, current, versions, git_commit(config.root), config.weights,
-                           config_hash(config), force=args.force, reason=args.reason)
+                           config_hash(config), force=args.force, reason=args.reason,
+                           only=args.metrics.split(",") if args.metrics else None)
     ignored = [d.name for d in compare(baseline, current) if d.status == "fail" and d.name not in changed]
     for name in ignored:
         print(f"warning: {name} empeoró; ignorado (usa --force --reason para aceptarlo)")
@@ -203,6 +204,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("update", help="write improvements into the baseline")
     p.add_argument("--force", action="store_true", help="also accept regressions (requires --reason)")
     p.add_argument("--reason", help="why the baseline is being loosened")
+    p.add_argument("--metrics", help="with --force: re-anchor only these metrics (comma-separated)")
     p.set_defaults(func=cmd_update)
     sub.add_parser("report", help="print metrics and score; always exit 0").set_defaults(func=cmd_report)
     sub.add_parser("init", help="create quality-ratchet.yml and the initial baseline").set_defaults(func=cmd_init)

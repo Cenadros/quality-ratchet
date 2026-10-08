@@ -114,7 +114,7 @@ When no function exceeds the CCN threshold, `complexity` falls back to the top-N
 
 Since 0.2.1, `duplication`'s jscpd scan is restricted to source extensions (the same set `tests_per_kloc` treats as code) — a duplicated non-code file (fonts, generated JSON fixtures, licenses…) no longer moves `duplication_pct`. If you're carrying an existing baseline, re-anchor once after upgrading: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.1"`.
 
-Since 0.2.2, Kotlin and Swift are read with `quality-ratchet`'s own function readers on top of lizard's tokenizer and counters (`quality_ratchet/lizard_readers.py`). lizard 1.24's readers lose track of the braces on everyday code — a one-line lambda with an arrow, a call to `get`/`set`/`.init`, an expression body, an extension function, `#available`, a property named `type` — and the functions around them were silently missing from the report or measured with the wrong length. Lambdas now count towards the function they are written in. Expect `long_functions`, `ccn_over_15` and `max_ccn` to rise on Kotlin and Swift code with no code change: the functions were there, uncounted. The baseline records the reader revision next to the lizard version (`1.24.0+readers1`), so `check` warns that a re-anchor is due: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.2"`.
+Since 0.2.2, Kotlin and Swift are read with `quality-ratchet`'s own function readers on top of lizard's tokenizer and counters (`quality_ratchet/lizard_readers.py`). lizard 1.24's readers lose track of the braces on everyday code — a one-line lambda with an arrow, a call to `get`/`set`/`.init`, an expression body, an extension function, `#available`, a property named `type` — and the functions around them were silently missing from the report or measured with the wrong length. Lambdas now count towards the function they are written in. Expect `long_functions`, `ccn_over_15` and `max_ccn` to rise on Kotlin and Swift code with no code change: the functions were there, uncounted. The baseline records the reader revision next to the lizard version (`1.24.0+readers1`), so `check` warns that a re-anchor is due: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.2" --metrics ccn_over_15,max_ccn,long_functions` (see "Changing tool versions").
 
 ## GitHub Action
 
@@ -164,6 +164,12 @@ Bumping `lizard`/`jscpd`/`scc`/a linter can move the numbers with no code change
 
 ```bash
 quality-ratchet update --force --reason "bump lizard 1.17→1.18"
+```
+
+A forced update re-anchors every metric and restarts the score at 50. When the bump only changes how some metrics are measured, name them and the rest keep their value, their anchor and the progress the score reflects:
+
+```bash
+quality-ratchet update --force --reason "bump quality-ratchet 0.2.2" --metrics ccn_over_15,max_ccn,long_functions
 ```
 
 The same applies to `quality-ratchet.yml` itself: changing it is a re-anchor event, and `update` requires `--force --reason` once the config no longer matches the hash recorded in the baseline.
