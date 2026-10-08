@@ -31,7 +31,7 @@ npm install -g jscpd@4.3.0
 go install github.com/boyter/scc/v3@v3.7.0
 ```
 
-Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above, pinned exactly (`==1.24.0`) for the same reason — `quality-ratchet` invokes it as `python -m lizard`, so no separate console script or `pipx inject` is needed.
+Pin the same `jscpd`/`scc` versions the GitHub Action uses (see `action.yml`) — `brew install scc` can resolve to a different version and shift numbers with no code change. `lizard` comes along as a Python dependency of the package above, pinned exactly (`==1.24.0`) for the same reason — `quality-ratchet` runs it as `python -m quality_ratchet.lizard_readers`, so no separate console script or `pipx inject` is needed.
 
 ## Quickstart
 
@@ -113,6 +113,8 @@ clones: 0  duplicated lines: 0  (0%)
 When no function exceeds the CCN threshold, `complexity` falls back to the top-N functions by CCN under a `-- top CCN (ninguna supera el umbral N)` sub-header instead of an empty section; a `-- funciones largas (NLOC > N)` sub-header only appears when there's at least one function to list under it. `tests` groups `include` entries by their first path segment (`ios`, `android`, `firebase/functions/src` and `firebase/functions/test` both roll up under `firebase`), one row per group. An empty group prints `(nada)` instead of rows.
 
 Since 0.2.1, `duplication`'s jscpd scan is restricted to source extensions (the same set `tests_per_kloc` treats as code) — a duplicated non-code file (fonts, generated JSON fixtures, licenses…) no longer moves `duplication_pct`. If you're carrying an existing baseline, re-anchor once after upgrading: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.1"`.
+
+Since 0.2.2, Kotlin and Swift are read with `quality-ratchet`'s own function readers on top of lizard's tokenizer and counters (`quality_ratchet/lizard_readers.py`). lizard 1.24's readers lose track of the braces on everyday code — a one-line lambda with an arrow, a call to `get`/`set`/`.init`, an expression body, an extension function, `#available`, a property named `type` — and the functions around them were silently missing from the report or measured with the wrong length. Lambdas now count towards the function they are written in. Expect `long_functions`, `ccn_over_15` and `max_ccn` to rise on Kotlin and Swift code with no code change: the functions were there, uncounted. The baseline records the reader revision next to the lizard version (`1.24.0+readers1`), so `check` warns that a re-anchor is due: `quality-ratchet update --force --reason "bump quality-ratchet 0.2.2"`.
 
 ## GitHub Action
 
