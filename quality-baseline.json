@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "commit": "de95bd5",
+  "commit": "1e0015d",
   "tool_versions": {
-    "lizard": "1.24.0",
+    "lizard": "1.24.0+readers1",
     "jscpd": "4.3.0",
     "ruff": "0.16.6",
     "scc": "3.7.0"
@@ -17,12 +17,12 @@
   },
   "metrics": {
     "ccn_over_15": {
-      "value": 1,
+      "value": 0,
       "better": "lower",
       "tolerance": 0.0
     },
     "max_ccn": {
-      "value": 23,
+      "value": 15,
       "better": "lower",
       "tolerance": 0.0
     },
@@ -42,12 +42,12 @@
       "tolerance": 0.0
     },
     "tests_per_kloc": {
-      "value": 88.97,
+      "value": 98.39,
       "better": "higher",
       "tolerance": 0.2
     }
   },
-  "score": 51,
+  "score": 59,
   "history": [],
   "config_hash": "a4a55fc8cfd5"
 }
