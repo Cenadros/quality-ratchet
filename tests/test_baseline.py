@@ -104,6 +104,29 @@ def test_ratchet_force_reanchors_and_records_history():
     assert new.history[-1]["from"]["max_ccn"] == 30 and new.history[-1]["to"]["max_ccn"] == 31
 
 
+def test_ratchet_force_on_some_metrics_keeps_the_rest_anchored():
+    b = make()
+    b.initial["lint_warnings"] = b.metrics["lint_warnings"].value * 2  # progress already made on lint
+    now = {**CURRENT, "max_ccn": 31, "tests_per_kloc": CURRENT["tests_per_kloc"] - 5}
+    new, changed = ratchet(b, now, {"lizard": "1.18.0"}, "999aaaa", DEFAULT_WEIGHTS, CFG_HASH,
+                            force=True, reason="bump lizard", only=["max_ccn"])
+    assert changed == ["max_ccn"]
+    assert new.metrics["max_ccn"].value == 31 and new.initial["max_ccn"] == 31
+    # Not named: a regression there is not accepted, and its anchor stays.
+    assert new.metrics["tests_per_kloc"].value == CURRENT["tests_per_kloc"]
+    assert new.initial["lint_warnings"] == b.initial["lint_warnings"]
+    assert new.score > 50
+    assert new.history[-1]["metrics"] == ["max_ccn"]
+
+
+def test_ratchet_metrics_needs_force_and_known_names():
+    with pytest.raises(ConfigError, match="--metrics requires --force"):
+        ratchet(make(), dict(CURRENT), VERSIONS, "x", DEFAULT_WEIGHTS, CFG_HASH, only=["max_ccn"])
+    with pytest.raises(ConfigError, match="not in the baseline: nope"):
+        ratchet(make(), dict(CURRENT), VERSIONS, "x", DEFAULT_WEIGHTS, CFG_HASH,
+                force=True, reason="r", only=["nope"])
+
+
 def test_ratchet_force_requires_reason():
     with pytest.raises(ConfigError, match="--reason"):
         ratchet(make(), dict(CURRENT), VERSIONS, "x", DEFAULT_WEIGHTS, CFG_HASH, force=True)

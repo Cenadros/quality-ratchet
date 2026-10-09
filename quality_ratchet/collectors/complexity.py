@@ -12,6 +12,11 @@ from .base import run
 
 INSTALL = "pip install lizard==1.24.0"
 
+# Revision of the Kotlin and Swift readers in lizard_readers, recorded with the
+# lizard version in the baseline. Bump it with any change there that can move a
+# number, so `check` warns that a re-anchor is due.
+READERS_REVISION = 1
+
 # lizard --csv columns: NLOC,CCN,token,PARAM,length,location,file,function,long_name,start,end
 _COL_NLOC, _COL_CCN, _COL_FILE, _COL_FUNCTION = 0, 1, 6, 7
 
@@ -30,7 +35,8 @@ def _lizard_rows(config: Config) -> list[dict]:
     ]
     if not files:
         return []
-    proc = run([sys.executable, "-m", "lizard", "--csv", *files])
+    # Not plain `-m lizard`: its Kotlin and Swift readers lose functions (see lizard_readers).
+    proc = run([sys.executable, "-m", "quality_ratchet.lizard_readers", "--csv", *files])
     rows: list[dict] = []
     for row in csv.reader(io.StringIO(proc.stdout)):
         if len(row) <= _COL_FUNCTION:
@@ -92,5 +98,6 @@ def versions(config: Config) -> dict[str, str]:
     try:
         version = importlib.metadata.version("lizard")
     except importlib.metadata.PackageNotFoundError:
-        version = "unknown"
-    return {"lizard": version}
+        return {"lizard": "unknown"}
+    # The readers change what is measured as much as a lizard release does.
+    return {"lizard": f"{version}+readers{READERS_REVISION}"}
